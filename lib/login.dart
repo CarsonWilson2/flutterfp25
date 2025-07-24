@@ -1,67 +1,60 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import 'login.dart';
 import 'home.dart';
+import 'signup.dart'; // Optional if adding a link to sign up
 
-class SignUpPage extends StatefulWidget {
-  const SignUpPage({super.key});
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
 
   @override
-  State<SignUpPage> createState() => _SignUpPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
-class _SignUpPageState extends State<SignUpPage> {
-  final TextEditingController nameController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
+class _LoginPageState extends State<LoginPage> {
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
 
   bool isLoading = false;
 
-  @override
-  void dispose() {
-    nameController.dispose();
-    emailController.dispose();
-    passwordController.dispose();
-    super.dispose();
-  }
+  void signIn() async {
+    String email = emailController.text.trim();
+    String password = passwordController.text.trim();
 
-  Future<void> signUp() async {
-    final name = nameController.text.trim();
-    final email = emailController.text.trim();
-    final password = passwordController.text;
+    if (email.isNotEmpty && password.isNotEmpty) {
+      setState(() => isLoading = true);
 
-    if (name.isEmpty || email.isEmpty || password.isEmpty) {
+      try {
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => HomePage(userName: email)),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Login failed: ${e.toString()}')),
+        );
+      } finally {
+        setState(() => isLoading = false);
+      }
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill out all fields')),
       );
-      return;
     }
+  }
 
-    setState(() => isLoading = true);
-
-    try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => HomePage(userName: name)),
-      );
-    } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? 'Signup failed')),
-      );
-    } catch (_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('An unexpected error occurred')),
-      );
-    } finally {
-      setState(() => isLoading = false);
-    }
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -84,7 +77,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
                 // ── Title ──
                 Text(
-                  'Create Account',
+                  'Welcome Back',
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.2,
@@ -92,29 +85,30 @@ class _SignUpPageState extends State<SignUpPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Join our fashion community!',
+                  'Sign in to continue',
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: Colors.grey[600],
                   ),
                 ),
                 const SizedBox(height: 30),
 
-                // ── Input Fields ──
-                _buildTextField(nameController, 'Full Name', Icons.person),
+                // ── Fields ──
+                _buildTextField(emailController, 'Email Address', Icons.email),
                 const SizedBox(height: 16),
-                _buildTextField(emailController, 'Email Address', Icons.email,
-                    keyboardType: TextInputType.emailAddress),
-                const SizedBox(height: 16),
-                _buildTextField(passwordController, 'Password', Icons.lock,
-                    obscureText: true),
+                _buildTextField(
+                  passwordController,
+                  'Password',
+                  Icons.lock,
+                  obscureText: true,
+                ),
 
                 const SizedBox(height: 30),
 
-                // ── Sign Up Button ──
+                // ── Login Button ──
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: isLoading ? null : signUp,
+                    onPressed: isLoading ? null : signIn,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -123,15 +117,13 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                     ),
                     child: isLoading
-                        ? const CircularProgressIndicator(
-                            color: Colors.white,
-                          )
+                        ? const CircularProgressIndicator(color: Colors.white)
                         : const Text(
-                            'Sign Up',
+                            'Log In',
                             style: TextStyle(
                               fontSize: 16,
-                              letterSpacing: 1,
                               fontWeight: FontWeight.bold,
+                              letterSpacing: 1,
                               color: Colors.white,
                             ),
                           ),
@@ -140,20 +132,20 @@ class _SignUpPageState extends State<SignUpPage> {
 
                 const SizedBox(height: 24),
 
-                // ── Login Redirect ──
+                // ── Redirect to Sign Up ──
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text("Already have an account? "),
+                    const Text("Don't have an account? "),
                     GestureDetector(
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const LoginPage()),
+                          MaterialPageRoute(builder: (_) => const SignUpPage()),
                         );
                       },
                       child: Text(
-                        "Log in",
+                        "Sign up",
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.black,
@@ -176,12 +168,10 @@ class _SignUpPageState extends State<SignUpPage> {
     String label,
     IconData icon, {
     bool obscureText = false,
-    TextInputType keyboardType = TextInputType.text,
   }) {
     return TextField(
       controller: controller,
       obscureText: obscureText,
-      keyboardType: keyboardType,
       style: const TextStyle(fontSize: 16),
       decoration: InputDecoration(
         prefixIcon: Icon(icon),
